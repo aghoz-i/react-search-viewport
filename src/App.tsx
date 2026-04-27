@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react'
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
 import './App.css'
 
 type SearchResult = {
@@ -40,6 +41,8 @@ function App() {
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches())
   const [submittedQuery, setSubmittedQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
+    useSpeechRecognition()
 
   useEffect(() => {
     const root = document.documentElement
@@ -73,6 +76,19 @@ function App() {
       // Ignore storage failures.
     }
   }, [recentSearches])
+
+  useEffect(() => {
+    if (!listening) {
+      const trimmed = transcript.trim()
+      setDraftQuery(transcript)
+
+      if (trimmed) {
+        addRecentSearch(trimmed)
+        setSubmittedQuery(trimmed)
+        setIsSearchFocused(false)
+      }
+    }
+  }, [listening, transcript])
 
   const addRecentSearch = (query: string) => {
     const normalizedQuery = query.trim()
@@ -126,6 +142,23 @@ function App() {
     setSubmittedQuery(query)
     addRecentSearch(query)
     setIsSearchFocused(false)
+  }
+
+  const handleVoiceSearchClick = () => {
+    if (!browserSupportsSpeechRecognition) {
+      return
+    }
+
+    if (listening) {
+      SpeechRecognition.stopListening()
+      setIsSearchFocused(false)
+      return
+    }
+
+    resetTranscript()
+    setDraftQuery('')
+    setIsSearchFocused(false)
+    SpeechRecognition.startListening()
   }
 
   return (
@@ -195,6 +228,17 @@ function App() {
           onBlur={() => setIsSearchFocused(false)}
           onChange={(event) => setDraftQuery(event.target.value)}
         />
+        <button
+          type="button"
+          className={`searchbar__voice ${listening ? 'searchbar__voice--active' : ''}`}
+          onClick={handleVoiceSearchClick}
+          disabled={!browserSupportsSpeechRecognition}
+          aria-pressed={listening}
+          aria-label={listening ? 'Stop voice search' : 'Start voice search'}
+          title={browserSupportsSpeechRecognition ? (listening ? 'Stop voice search' : 'Voice search') : 'Voice search not supported'}
+        >
+          {listening ? 'Stop' : 'Voice'}
+        </button>
         <button type="submit">Search</button>
       </form>
     </div>

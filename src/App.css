@@ -140,6 +140,19 @@
   font-weight: 700;
 }
 
+.searchbar__voice {
+  min-width: 4.4rem;
+  background: #111827;
+}
+
+.searchbar__voice--active {
+  background: #dc2626;
+}
+
+.searchbar__voice:disabled {
+  opacity: 0.45;
+}
+
 .searchbar button:active {
   transform: translateY(1px);
 }

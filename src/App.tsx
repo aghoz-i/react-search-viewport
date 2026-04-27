@@ -37,7 +37,6 @@ const readRecentSearches = () => {
 
 function App() {
   const [draftQuery, setDraftQuery] = useState('')
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches())
   const [submittedQuery, setSubmittedQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
@@ -59,20 +58,11 @@ function App() {
     window.visualViewport?.addEventListener('resize', updateAppHeight)
     window.visualViewport?.addEventListener('scroll', updateAppHeight)
 
-    const updateFullscreenState = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement))
-    }
-
-    document.addEventListener('fullscreenchange', updateFullscreenState)
-
-    updateFullscreenState()
-
     return () => {
       window.removeEventListener('resize', updateAppHeight)
       window.removeEventListener('orientationchange', updateAppHeight)
       window.visualViewport?.removeEventListener('resize', updateAppHeight)
       window.visualViewport?.removeEventListener('scroll', updateAppHeight)
-      document.removeEventListener('fullscreenchange', updateFullscreenState)
     }
   }, [])
 
@@ -83,18 +73,6 @@ function App() {
       // Ignore storage failures.
     }
   }, [recentSearches])
-
-  const handleFullscreenToggle = async () => {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen()
-      } else {
-        await document.documentElement.requestFullscreen()
-      }
-    } catch {
-      setIsFullscreen(Boolean(document.fullscreenElement))
-    }
-  }
 
   const addRecentSearch = (query: string) => {
     const normalizedQuery = query.trim()
@@ -157,9 +135,6 @@ function App() {
           <h1>Search</h1>
           <p>Mobile search page.</p>
         </div>
-        <button type="button" className="topbar__button" onClick={handleFullscreenToggle}>
-          {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-        </button>
       </header>
 
       <main className="results" aria-label={isSearchFocused ? 'Recent searches' : 'Search results'}>

@@ -37,17 +37,6 @@
   opacity: 0.75;
 }
 
-.topbar__button {
-  flex: none;
-  height: 2.4rem;
-  padding: 0 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font-weight: 700;
-}
-
 .results {
   flex: 1 1 auto;
   min-height: 0;

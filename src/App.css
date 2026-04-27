@@ -1,0 +1,119 @@
+.search-page {
+  --topbar-height: 5.5rem;
+  --searchbar-height: 5rem;
+  height: var(--app-height, 100dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #f3f4f6;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex: 0 0 var(--topbar-height);
+  padding: 0.9rem 1rem;
+  background: #111827;
+  color: #fff;
+  overflow: hidden;
+}
+
+.topbar h1,
+.topbar p {
+  margin: 0;
+}
+
+.topbar h1 {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.topbar p {
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.topbar__button {
+  flex: none;
+  height: 2.4rem;
+  padding: 0 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-weight: 700;
+}
+
+.results {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 0.75rem;
+}
+
+.results__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 0 0.75rem;
+  color: #374151;
+}
+
+.card {
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 1rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.card h2,
+.card p {
+  margin: 0.35rem 0 0;
+}
+
+.card small {
+  color: #2563eb;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.searchbar {
+  flex: 0 0 var(--searchbar-height);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+}
+
+.searchbar input {
+  flex: 1;
+  min-width: 0;
+  height: 3.1rem;
+  padding: 0 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+}
+
+.searchbar button {
+  height: 3.1rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+}
+
+.searchbar button:active {
+  transform: translateY(1px);
+}

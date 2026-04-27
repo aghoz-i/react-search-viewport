@@ -15,10 +15,32 @@ const searchCatalog: SearchResult[] = [
   { title: 'Mobile layout patterns', category: 'Design', summary: 'Sticky bars and scrollable results.' },
 ]
 
+const recentSearchStorageKey = 'recent-searches'
+
+const readRecentSearches = () => {
+  try {
+    const storedValue = window.localStorage.getItem(recentSearchStorageKey)
+
+    if (!storedValue) {
+      return [] as string[]
+    }
+
+    const parsedValue = JSON.parse(storedValue) as unknown
+
+    return Array.isArray(parsedValue)
+      ? parsedValue.filter((item): item is string => typeof item === 'string')
+      : []
+  } catch {
+    return [] as string[]
+  }
+}
+
 function App() {
   const [draftQuery, setDraftQuery] = useState('')
-  const [submittedQuery, setSubmittedQuery] = useState('')
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches())
+  const [submittedQuery, setSubmittedQuery] = useState('')
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
 
   useEffect(() => {
     const root = document.documentElement
@@ -54,6 +76,14 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(recentSearchStorageKey, JSON.stringify(recentSearches))
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [recentSearches])
+
   const handleFullscreenToggle = async () => {
     try {
       if (document.fullscreenElement) {
@@ -64,6 +94,25 @@ function App() {
     } catch {
       setIsFullscreen(Boolean(document.fullscreenElement))
     }
+  }
+
+  const addRecentSearch = (query: string) => {
+    const normalizedQuery = query.trim()
+
+    if (!normalizedQuery) {
+      return
+    }
+
+    const normalizedKey = normalizedQuery.toLowerCase()
+
+    setRecentSearches((currentSearches) => {
+      const nextSearches = [
+        normalizedQuery,
+        ...currentSearches.filter((item) => item.toLowerCase() !== normalizedKey),
+      ]
+
+      return nextSearches.slice(0, 8)
+    })
   }
 
   const normalizedQuery = submittedQuery.trim().toLowerCase()
@@ -80,7 +129,25 @@ function App() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setSubmittedQuery(draftQuery)
+
+    const normalizedQuery = draftQuery.trim()
+
+    if (!normalizedQuery) {
+      setSubmittedQuery('')
+      setIsSearchFocused(false)
+      return
+    }
+
+    addRecentSearch(normalizedQuery)
+    setSubmittedQuery(normalizedQuery)
+    setIsSearchFocused(false)
+  }
+
+  const handleRecentSearchClick = (query: string) => {
+    setDraftQuery(query)
+    setSubmittedQuery(query)
+    addRecentSearch(query)
+    setIsSearchFocused(false)
   }
 
   return (
@@ -95,19 +162,50 @@ function App() {
         </button>
       </header>
 
-      <main className="results" aria-label="Search results">
-        <div className="results__header">
-          <strong>{submittedQuery.trim() ? `Results for “${submittedQuery.trim()}”` : 'Trending results'}</strong>
-          <span>{visibleResults.length} items</span>
-        </div>
+      <main className="results" aria-label={isSearchFocused ? 'Recent searches' : 'Search results'}>
+        {isSearchFocused ? (
+          <section className="recent-searches" aria-label="Recent searches">
+            <div className="results__header">
+              <strong>Recent searches</strong>
+              <span>{recentSearches.length} items</span>
+            </div>
 
-        {visibleResults.map((item) => (
-          <article className="card" key={item.title}>
-            <small>{item.category}</small>
-            <h2>{item.title}</h2>
-            <p>{item.summary}</p>
-          </article>
-        ))}
+            {recentSearches.length > 0 ? (
+              <div className="recent-searches__list">
+                {recentSearches.map((search) => (
+                  <button
+                    key={search}
+                    type="button"
+                    className="recent-searches__item"
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      handleRecentSearchClick(search)
+                    }}
+                  >
+                    {search}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="recent-searches__empty">Your recent searches will appear here.</p>
+            )}
+          </section>
+        ) : (
+          <>
+            <div className="results__header">
+              <strong>{submittedQuery.trim() ? `Results for “${submittedQuery.trim()}”` : 'Trending results'}</strong>
+              <span>{visibleResults.length} items</span>
+            </div>
+
+            {visibleResults.map((item) => (
+              <article className="card" key={item.title}>
+                <small>{item.category}</small>
+                <h2>{item.title}</h2>
+                <p>{item.summary}</p>
+              </article>
+            ))}
+          </>
+        )}
       </main>
 
       <form className="searchbar" onSubmit={handleSubmit}>
@@ -118,6 +216,8 @@ function App() {
           enterKeyHint="search"
           placeholder="Search"
           value={draftQuery}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
           onChange={(event) => setDraftQuery(event.target.value)}
         />
         <button type="submit">Search</button>

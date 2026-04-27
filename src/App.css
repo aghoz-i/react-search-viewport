@@ -85,6 +85,43 @@
   letter-spacing: 0.08em;
 }
 
+.recent-searches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recent-searches__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recent-searches__item {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.9rem;
+  background: #fff;
+  color: #111827;
+  text-align: left;
+  font-weight: 600;
+}
+
+.recent-searches__item:active {
+  transform: translateY(1px);
+}
+
+.recent-searches__empty {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #fff;
+  border: 1px dashed #d1d5db;
+  color: #6b7280;
+}
+
 .searchbar {
   flex: 0 0 var(--searchbar-height);
   display: flex;

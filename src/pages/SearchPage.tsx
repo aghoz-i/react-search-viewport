@@ -1,6 +1,8 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
+import { List as VirtualizedList, type RowComponentProps } from 'react-window'
+import heroImg from '../assets/hero.png'
 import type { SearchResult } from '../types'
 import { fetchCatalog } from '../api/mockApi'
 import { readRecentSearches, saveRecentSearches } from '../utils/storage'
@@ -8,6 +10,40 @@ import { readRecentSearches, saveRecentSearches } from '../utils/storage'
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const splitQueryWords = (query: string) => query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+
+const RESULT_ITEM_HEIGHT = 200
+const RESULT_LIST_OVERSCAN = 4
+
+type ResultListData = {
+  items: SearchResult[]
+  queryString: string
+  submittedQuery: string
+}
+
+const ResultRow = ({ ariaAttributes, index, style, items, queryString, submittedQuery }: RowComponentProps<ResultListData>) => {
+  const item = items[index]
+
+  return (
+    <Link
+      className="card card--link card--virtual-row"
+      {...ariaAttributes}
+      style={style}
+      to={`/items/${item.id}${queryString ? `?${queryString}` : ''}`}
+    >
+      <img
+        className="card__thumb"
+        src={heroImg}
+        alt=""
+        width={72}
+        height={72}
+        loading="lazy"
+      />
+      <small>{item.category}</small>
+      <h2>{highlightMatch(item.title, submittedQuery)}</h2>
+      <p>{item.summary}</p>
+    </Link>
+  )
+}
 
 const highlightMatch = (text: string, query: string) => {
   const words = splitQueryWords(query)
@@ -40,6 +76,8 @@ export default function SearchPage() {
     useSpeechRecognition()
   const [catalog, setCatalog] = useState<SearchResult[] | null>(null)
   const [loadingCatalog, setLoadingCatalog] = useState(true)
+  const resultsListRef = useRef<HTMLDivElement | null>(null)
+  const [resultsListHeight, setResultsListHeight] = useState(0)
 
   useEffect(() => {
     const root = document.documentElement
@@ -69,6 +107,10 @@ export default function SearchPage() {
   useEffect(() => {
     saveRecentSearches(recentSearches)
   }, [recentSearches])
+
+  useEffect(() => {
+    // placeholder: moved below so it can depend on visibleResults length
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -117,9 +159,7 @@ export default function SearchPage() {
 
   const queryWords = splitQueryWords(submittedQuery)
   const source = catalog ?? []
-  const filterTimerLabel = 'Search filter time'
 
-  console.time(filterTimerLabel)
   const visibleResults = source.filter((item) => {
     if (queryWords.length === 0) return true
 
@@ -127,9 +167,32 @@ export default function SearchPage() {
 
     return queryWords.every((word) => searchableText.includes(word))
   })
-  console.timeEnd(filterTimerLabel)
+
+  useEffect(() => {
+    const element = resultsListRef.current
+
+    if (!element) {
+      setResultsListHeight(0)
+      return
+    }
+
+    const updateHeight = () => {
+      setResultsListHeight(element.clientHeight)
+    }
+
+    updateHeight()
+
+    const observer = new ResizeObserver(updateHeight)
+    observer.observe(element)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [loadingCatalog, isSearchFocused, visibleResults.length])
 
   const queryString = searchParams.toString()
+  const hasVisibleResults = visibleResults.length > 0
+  const listHeight = resultsListHeight || RESULT_ITEM_HEIGHT * 4
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -199,13 +262,26 @@ export default function SearchPage() {
               <span>{visibleResults.length} items</span>
             </div>
 
-            {visibleResults.map((item) => (
-              <Link key={item.id} className="card card--link" to={`/items/${item.id}${queryString ? `?${queryString}` : ''}`}>
-                <small>{item.category}</small>
-                <h2>{highlightMatch(item.title, submittedQuery)}</h2>
-                <p>{item.summary}</p>
-              </Link>
-            ))}
+            <div className="results__listShell" ref={resultsListRef}>
+              {hasVisibleResults ? (
+                resultsListHeight > 0 ? (
+                  <VirtualizedList
+                    className="results__list"
+                    defaultHeight={listHeight}
+                    rowComponent={ResultRow}
+                    rowCount={visibleResults.length}
+                    rowHeight={RESULT_ITEM_HEIGHT}
+                    rowProps={{ items: visibleResults, queryString, submittedQuery }}
+                    overscanCount={RESULT_LIST_OVERSCAN}
+                    style={{ height: listHeight, width: '100%' }}
+                  />
+                ) : (
+                  <div className="results__loading">Measuring results…</div>
+                )
+              ) : (
+                <div className="results__empty">No results match your search.</div>
+              )}
+            </div>
           </>
         )}
       </main>

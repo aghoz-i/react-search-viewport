@@ -5,6 +5,31 @@ import type { SearchResult } from '../types'
 import { fetchCatalog } from '../api/mockApi'
 import { readRecentSearches, saveRecentSearches } from '../utils/storage'
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const splitQueryWords = (query: string) => query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+
+const highlightMatch = (text: string, query: string) => {
+  const words = splitQueryWords(query)
+
+  if (words.length === 0) {
+    return text
+  }
+
+  const pattern = new RegExp(`(${words.map(escapeRegExp).join('|')})`, 'ig')
+  const segments = text.split(pattern)
+
+  return segments.map((segment, index) =>
+    index % 2 === 1 ? (
+      <mark key={`${segment}-${index}`} className="card__title-mark">
+        {segment}
+      </mark>
+    ) : (
+      <span key={`${segment}-${index}`}>{segment}</span>
+    ),
+  )
+}
+
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const submittedQuery = searchParams.get('q')?.trim() ?? ''
@@ -90,13 +115,19 @@ export default function SearchPage() {
     setIsSearchFocused(false)
   }
 
-  const normalizedQuery = submittedQuery.toLowerCase()
+  const queryWords = splitQueryWords(submittedQuery)
   const source = catalog ?? []
+  const filterTimerLabel = 'Search filter time'
 
+  console.time(filterTimerLabel)
   const visibleResults = source.filter((item) => {
-    if (!normalizedQuery) return true
-    return `${item.title} ${item.category} ${item.summary}`.toLowerCase().includes(normalizedQuery)
+    if (queryWords.length === 0) return true
+
+    const searchableText = [item.title, item.category, item.summary].join(' ').toLowerCase()
+
+    return queryWords.every((word) => searchableText.includes(word))
   })
+  console.timeEnd(filterTimerLabel)
 
   const queryString = searchParams.toString()
 
@@ -171,7 +202,7 @@ export default function SearchPage() {
             {visibleResults.map((item) => (
               <Link key={item.id} className="card card--link" to={`/items/${item.id}${queryString ? `?${queryString}` : ''}`}>
                 <small>{item.category}</small>
-                <h2>{item.title}</h2>
+                <h2>{highlightMatch(item.title, submittedQuery)}</h2>
                 <p>{item.summary}</p>
               </Link>
             ))}

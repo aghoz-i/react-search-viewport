@@ -70,6 +70,12 @@
   margin: 0.35rem 0 0;
 }
 
+.card__title-mark {
+  background: transparent;
+  color: #2563eb;
+  font: inherit;
+}
+
 .card small {
   color: #2563eb;
   font-weight: 700;

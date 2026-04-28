@@ -1,20 +1,70 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
+import {
+  BrowserRouter,
+  Link,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import './App.css'
 
 type SearchResult = {
+  id: string
   title: string
   category: string
   summary: string
+  details: string
 }
 
-const searchCatalog: SearchResult[] = [
-  { title: 'Nearby coffee shops', category: 'Places', summary: 'Open now, good Wi-Fi, quick pickup.' },
-  { title: 'Weekend flight deals', category: 'Travel', summary: 'Short-trip fares and departure times.' },
-  { title: 'To-do templates', category: 'Productivity', summary: 'Simple daily planning lists.' },
-  { title: 'Lunch spots nearby', category: 'Food', summary: 'Fast, healthy options close by.' },
-  { title: 'Mobile layout patterns', category: 'Design', summary: 'Sticky bars and scrollable results.' },
-]
+const searchCatalog: SearchResult[] = Array.from({ length: 100 }, (_, index) => {
+  const templates = [
+    {
+      title: 'Nearby coffee shops',
+      category: 'Places',
+      summary: 'Open now, good Wi-Fi, quick pickup.',
+      details: 'Browse compact local spots with fast service, seating notes, and peak-hour hints.',
+    },
+    {
+      title: 'Weekend flight deals',
+      category: 'Travel',
+      summary: 'Short-trip fares and departure times.',
+      details: 'Compare fare windows, departure times, and trip length without leaving the page.',
+    },
+    {
+      title: 'To-do templates',
+      category: 'Productivity',
+      summary: 'Simple daily planning lists.',
+      details: 'Quick-start task layouts for planning, focus blocks, and day-end review.',
+    },
+    {
+      title: 'Lunch spots nearby',
+      category: 'Food',
+      summary: 'Fast, healthy options close by.',
+      details: 'Small, search-friendly summaries that make scanning options fast on mobile.',
+    },
+    {
+      title: 'Mobile layout patterns',
+      category: 'Design',
+      summary: 'Sticky bars and scrollable results.',
+      details: 'Detail pages keep context while the list and search state stay in the URL.',
+    },
+  ] as const
+
+  const template = templates[index % templates.length]
+  const sequence = String(index + 1).padStart(3, '0')
+
+  return {
+    id: `item-${sequence}`,
+    title: `${template.title} ${sequence}`,
+    category: template.category,
+    summary: template.summary,
+    details: `${template.details} Item ${sequence} keeps the example realistic for larger lists.`,
+  }
+})
 
 const recentSearchStorageKey = 'recent-searches'
 
@@ -36,10 +86,39 @@ const readRecentSearches = () => {
   }
 }
 
+const saveRecentSearches = (items: string[]) => {
+  try {
+    window.localStorage.setItem(recentSearchStorageKey, JSON.stringify(items))
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+const getSearchResultById = (id: string) => searchCatalog.find((item) => item.id === id)
+
+const makeSearchPath = (query: string) => {
+  const trimmedQuery = query.trim()
+
+  return trimmedQuery ? `/?q=${encodeURIComponent(trimmedQuery)}` : '/'
+}
+
 function App() {
-  const [draftQuery, setDraftQuery] = useState('')
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<SearchPage />} />
+        <Route path="/items/:itemId" element={<DetailPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+function SearchPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const submittedQuery = searchParams.get('q')?.trim() ?? ''
+  const [draftQuery, setDraftQuery] = useState(() => submittedQuery)
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches())
-  const [submittedQuery, setSubmittedQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
     useSpeechRecognition()
@@ -70,25 +149,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(recentSearchStorageKey, JSON.stringify(recentSearches))
-    } catch {
-      // Ignore storage failures.
-    }
+    saveRecentSearches(recentSearches)
   }, [recentSearches])
-
-  useEffect(() => {
-    if (!listening) {
-      const trimmed = transcript.trim()
-      setDraftQuery(transcript)
-
-      if (trimmed) {
-        addRecentSearch(trimmed)
-        setSubmittedQuery(trimmed)
-        setIsSearchFocused(false)
-      }
-    }
-  }, [listening, transcript])
 
   const addRecentSearch = (query: string) => {
     const normalizedQuery = query.trim()
@@ -109,7 +171,23 @@ function App() {
     })
   }
 
-  const normalizedQuery = submittedQuery.trim().toLowerCase()
+  const commitQuery = (query: string) => {
+    const normalizedInput = query.trim()
+
+    if (!normalizedInput) {
+      setDraftQuery('')
+      setSearchParams({}, { replace: true })
+      setIsSearchFocused(false)
+      return
+    }
+
+    setDraftQuery(normalizedInput)
+    addRecentSearch(normalizedInput)
+    setSearchParams({ q: normalizedInput }, { replace: true })
+    setIsSearchFocused(false)
+  }
+
+  const normalizedQuery = submittedQuery.toLowerCase()
 
   const visibleResults = searchCatalog.filter((item) => {
     if (!normalizedQuery) {
@@ -121,27 +199,15 @@ function App() {
       .includes(normalizedQuery)
   })
 
+  const queryString = searchParams.toString()
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    const normalizedQuery = draftQuery.trim()
-
-    if (!normalizedQuery) {
-      setSubmittedQuery('')
-      setIsSearchFocused(false)
-      return
-    }
-
-    addRecentSearch(normalizedQuery)
-    setSubmittedQuery(normalizedQuery)
-    setIsSearchFocused(false)
+    commitQuery(draftQuery)
   }
 
   const handleRecentSearchClick = (query: string) => {
-    setDraftQuery(query)
-    setSubmittedQuery(query)
-    addRecentSearch(query)
-    setIsSearchFocused(false)
+    commitQuery(query)
   }
 
   const handleVoiceSearchClick = () => {
@@ -151,7 +217,7 @@ function App() {
 
     if (listening) {
       SpeechRecognition.stopListening()
-      setIsSearchFocused(false)
+      commitQuery(transcript)
       return
     }
 
@@ -201,16 +267,22 @@ function App() {
         ) : (
           <>
             <div className="results__header">
-              <strong>{submittedQuery.trim() ? `Results for “${submittedQuery.trim()}”` : 'Trending results'}</strong>
+              <strong>
+                {submittedQuery ? `Results for “${submittedQuery}”` : 'Trending results'}
+              </strong>
               <span>{visibleResults.length} items</span>
             </div>
 
             {visibleResults.map((item) => (
-              <article className="card" key={item.title}>
+              <Link
+                key={item.id}
+                className="card card--link"
+                to={`/items/${item.id}${queryString ? `?${queryString}` : ''}`}
+              >
                 <small>{item.category}</small>
                 <h2>{item.title}</h2>
                 <p>{item.summary}</p>
-              </article>
+              </Link>
             ))}
           </>
         )}
@@ -241,6 +313,46 @@ function App() {
         </button>
         <button type="submit">Search</button>
       </form>
+    </div>
+  )
+}
+
+function DetailPage() {
+  const navigate = useNavigate()
+  const { itemId } = useParams()
+  const [searchParams] = useSearchParams()
+
+  const item = itemId ? getSearchResultById(itemId) : undefined
+
+  if (!item) {
+    return <Navigate to={makeSearchPath(searchParams.get('q') ?? '')} replace />
+  }
+
+  return (
+    <div className="detail-page">
+      <header className="detail-hero">
+        <button type="button" className="detail-back" onClick={() => navigate(-1)}>
+          Back
+        </button>
+        <small className="detail-kicker">{item.category}</small>
+        <h1>{item.title}</h1>
+        <p>{item.summary}</p>
+      </header>
+
+      <main className="detail-body">
+        <section className="detail-panel">
+          <h2>About this result</h2>
+          <p>{item.details}</p>
+        </section>
+
+        <section className="detail-panel detail-panel--muted">
+          <h2>Returning to the list</h2>
+          <p>
+            The search term stays in the URL, so using the back button returns to the same filtered
+            page instead of resetting the list.
+          </p>
+        </section>
+      </main>
     </div>
   )
 }
